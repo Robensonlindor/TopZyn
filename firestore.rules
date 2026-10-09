@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function isValidFirestoreUser(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 150 &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 200)) &&
+             (!('phoneNumber' in data) || data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 50)) &&
+             (data.balanceGds is int || data.balanceGds is float) && data.balanceGds >= 0 &&
+             (!('currency' in data) || (data.currency is string && data.currency.size() <= 10)) &&
+             (!('isTransferEnabled' in data) || data.isTransferEnabled is bool);
+    }
+
+    function isValidFirestoreTransaction(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.type in ['DEPOSIT', 'SEND', 'RECHARGE', 'WITHDRAW'] &&
+             (data.amountGds is int || data.amountGds is float) && data.amountGds >= 0 &&
+             (!('feeGds' in data) || (data.feeGds is int || data.feeGds is float)) &&
+             (!('recipient' in data) || (data.recipient is string && data.recipient.size() <= 150)) &&
+             (!('method' in data) || (data.method is string && data.method.size() <= 50)) &&
+             data.status in ['SUCCESS', 'PENDING', 'FAILED'] &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500));
+    }
+
+    function isValidFirestoreOrder(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.gameId is string && data.gameId.size() > 0 && data.gameId.size() <= 100 &&
+             data.gameTitle is string && data.gameTitle.size() > 0 && data.gameTitle.size() <= 100 &&
+             data.playerId is string && data.playerId.size() > 0 && data.playerId.size() <= 100 &&
+             (!('zoneId' in data) || (data.zoneId is string && data.zoneId.size() <= 100)) &&
+             (!('packageId' in data) || (data.packageId is string && data.packageId.size() <= 100)) &&
+             (!('packageName' in data) || (data.packageName is string && data.packageName.size() <= 150)) &&
+             (data.priceGds is int || data.priceGds is float) && data.priceGds >= 0 &&
+             data.status in ['PENDING', 'PROCESSING', 'SUCCESS', 'FAILED'];
+    }
+
+    // --- Users Collection & Subcollections ---
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) &&
+                       incoming().userId == userId &&
+                       incoming().keys().hasAll(['userId', 'fullName', 'balanceGds']) &&
+                       isValidFirestoreUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       isValidFirestoreUser(incoming());
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /transactions/{transactionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(transactionId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['id', 'userId', 'type', 'amountGds', 'status']) &&
+                         isValidFirestoreTransaction(incoming());
+        allow update: if isOwner(userId) && isValidId(transactionId) &&
+                         incoming().userId == existing().userId &&
+                         isValidFirestoreTransaction(incoming());
+        allow delete: if isOwner(userId) && isValidId(transactionId);
+      }
+
+      match /orders/{orderId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(orderId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['id', 'userId', 'gameId', 'gameTitle', 'playerId', 'priceGds', 'status']) &&
+                         isValidFirestoreOrder(incoming());
+        allow update: if isOwner(userId) && isValidId(orderId) &&
+                         incoming().userId == existing().userId &&
+                         isValidFirestoreOrder(incoming());
+        allow delete: if isOwner(userId) && isValidId(orderId);
+      }
+    }
+  }
+}

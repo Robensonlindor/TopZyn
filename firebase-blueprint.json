@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "FirestoreUser": {
+      "title": "FirestoreUser",
+      "description": "Profil et solde portefeuille utilisateur en Gourdes (GDS)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID du compte Firebase Auth" },
+        "fullName": { "type": "string", "description": "Nom complet de l'utilisateur" },
+        "email": { "type": "string", "format": "email", "description": "Adresse email" },
+        "phoneNumber": { "type": "string", "description": "Numéro de téléphone" },
+        "balanceGds": { "type": "number", "description": "Solde disponible en Gourdes (GDS)" },
+        "currency": { "type": "string", "description": "Devise (GDS)" },
+        "isTransferEnabled": { "type": "boolean", "description": "Autorisation de transfert" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fullName", "balanceGds"]
+    },
+    "FirestoreTransaction": {
+      "title": "FirestoreTransaction",
+      "description": "Historique des transactions financières de l'utilisateur",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant de la transaction" },
+        "userId": { "type": "string", "description": "UID du propriétaire" },
+        "type": { "type": "string", "enum": ["DEPOSIT", "SEND", "RECHARGE", "WITHDRAW"], "description": "Type d'opération" },
+        "amountGds": { "type": "number", "description": "Montant en GDS" },
+        "feeGds": { "type": "number", "description": "Frais en GDS" },
+        "recipient": { "type": "string", "description": "Destinataire" },
+        "method": { "type": "string", "description": "Méthode de paiement" },
+        "status": { "type": "string", "enum": ["SUCCESS", "PENDING", "FAILED"], "description": "Statut" },
+        "description": { "type": "string", "description": "Description" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "amountGds", "status"]
+    },
+    "FirestoreOrder": {
+      "title": "FirestoreOrder",
+      "description": "Commande de recharge de jeu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant de commande" },
+        "userId": { "type": "string", "description": "UID du client" },
+        "gameId": { "type": "string", "description": "ID du jeu" },
+        "gameTitle": { "type": "string", "description": "Titre du jeu" },
+        "playerId": { "type": "string", "description": "ID du joueur dans le jeu" },
+        "zoneId": { "type": "string", "description": "Zone ou serveur" },
+        "packageId": { "type": "string", "description": "ID du package" },
+        "packageName": { "type": "string", "description": "Nom du package" },
+        "priceGds": { "type": "number", "description": "Prix en GDS" },
+        "status": { "type": "string", "enum": ["PENDING", "PROCESSING", "SUCCESS", "FAILED"], "description": "Statut de recharge" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "gameId", "gameTitle", "playerId", "priceGds", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/entities/FirestoreUser",
+      "description": "Profil et portefeuille utilisateur"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "#/entities/FirestoreTransaction",
+      "description": "Historique des transactions de l'utilisateur"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": "#/entities/FirestoreOrder",
+      "description": "Historique des commandes de l'utilisateur"
+    }
+  }
+}
